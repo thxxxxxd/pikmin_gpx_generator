@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <title>Pikmin GPX Generator</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+                   "Noto Sans TC", "PingFang TC", "Microsoft JhengHei",
+                   sans-serif;
+      max-width: 800px;
+      margin: 20px auto;
+      line-height: 1.6;
+    }
+    textarea { width: 100%; height: 220px; }
+    button { margin-top: 10px; padding: 8px 16px; }
+    pre { background: #f5f5f5; padding: 10px; white-space: pre-wrap; }
+    label { font-weight: bold; display: block; margin-top: 10px; }
+    h1 {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: 1px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Pikmin GPX Generator</h1>
+
+  <p>輸入格式：每行一組 <code>lat,lon</code>，例如：<br>
+  <code>-15.89547,-52.259943</code><br>
+  <code>-15.896349,-52.25998</code></p>
+
+  <label for="coords">座標列表：</label>
+  <textarea id="coords" placeholder="-15.89547,-52.259943
+-15.896349,-52.25998"></textarea>
+
+  <label for="format">輸出格式：</label>
+  <select id="format">
+    <option value="standard">standard GPX file</option>
+    <option value="ghost">魅影</option>
+  </select>
+
+  <button id="generate">產生並下載</button>
+
+  <h2>輸出預覽</h2>
+  <pre id="preview"></pre>
+
+  <script>
+    function download(filename, text, mime) {
+      const blob = new Blob([text], { type: mime || "application/gpx+xml;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // 將每行 lat,lon 轉成物件陣列
+    function parseCoords(text) {
+      const lines = text.split(/\r?\n/);
+      const pts = [];
+      lines.forEach((line, idx) => {
+        const trimmed = line.trim();
+        if (!trimmed) return;
+        const parts = trimmed.split(/[, \t]+/);
+        if (parts.length >= 2) {
+          const lat = parseFloat(parts[0]);
+          const lon = parseFloat(parts[1]);
+          if (!isNaN(lat) && !isNaN(lon)) {
+            pts.push({ lat, lon, index: idx + 1 });
+          }
+        }
+      });
+      return pts;
+    }
+
+    // standard GPX 1.1：trk / trkseg / trkpt
+    function buildStandardGpx(points) {
+      const header = `<?xml version="1.0" encoding="UTF-8"?>\n` +
+        `<gpx version="1.1" creator="Pikmin-GPX-Generator" ` +
+        `xmlns="http://www.topografix.com/GPX/1/1" ` +
+        `xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ` +
+        `xsi:schemaLocation="http://www.topografix.com/GPX/1/1 ` +
+        `http://www.topografix.com/GPX/1/1/gpx.xsd">\n`;
+
+      const footer = `</gpx>\n`;
+
+      const trkpts = points.map(p =>
+        `      <trkpt lat="${p.lat}" lon="${p.lon}"></trkpt>`
+      ).join("\n");
+
+      const body = [
+        `  <trk>`,
+        `    <name>Generated Track</name>`,
+        `    <trkseg>`,
+        trkpts,
+        `    </trkseg>`,
+        `  </trk>`
+      ].join("\n");
+
+      return header + body + "\n" + footer;
+    }
+
+    // 「魅影」格式：含 iToolsData + 多個 wpt
+    function buildGhostFormat(points) {
+      const header = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx>\n`;
+      const footer = `</gpx>\n`;
+
+      const iToolsBlock = [
+        `    <iToolsData speed="250.0" link="https://www.thinkskysoft.com" loop="0">`,
+        `        <rights>Copyright (c) 2018, thinkskysoft</rights>`,
+        `    </iToolsData>`
+      ].join("\n");
+
+      const wpts = points.map((p, i) =>
+        `    <wpt lat="${p.lat}" lon="${p.lon}"><name>WP${i + 1}</name></wpt>`
+      ).join("\n");
+
+      const body = iToolsBlock + "\n\n" + wpts;
+
+      return header + body + "\n" + footer;
+    }
+
+    document.getElementById("generate").addEventListener("click", function () {
+      const text = document.getElementById("coords").value || "";
+      const format = document.getElementById("format").value;
+      const points = parseCoords(text);
+
+      if (points.length === 0) {
+        alert("沒有找到任何有效座標，請檢查輸入。");
+        return;
+      }
+
+      let xml = "";
+      let filename = "";
+
+      if (format === "standard") {
+        xml = buildStandardGpx(points);
+        filename = "track-standard.gpx";
+      } else {
+        xml = buildGhostFormat(points);
+        filename = "track-ghost.gpx";   // 魅影也使用 .gpx 副檔名
+      }
+
+      document.getElementById("preview").textContent = xml;
+      download(filename, xml, "application/gpx+xml;charset=utf-8");
+    });
+  </script>
+</body>
+</html>
