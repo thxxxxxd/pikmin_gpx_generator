@@ -39,6 +39,7 @@
     <option value="standard">standard GPX file</option>
     <option value="ghost">魅影</option>
     <option value="mocpogo">MocPOGO</option>
+    <option value="all">我全都要!</option>
   </select>
 
   <label for="mode">路線模式：</label>
@@ -51,8 +52,7 @@
   <label for="zvalue">圈圈要多大：</label>
   <input id="zvalue" type="number" step="0.000001" value="0.0003" />
 
-  <!-- 新增：檔名輸入 -->
-  <label for="filename">檔名要叫啥：</label>
+  <label for="filename">檔名：</label>
   <input id="filename" type="text" value="route" />
 
   <label>
@@ -184,7 +184,6 @@
       return `${" ".repeat(indent)}"${key}" : ${v}${isLast ? "" : ","}`;
     }
 
-    // 新增: name 參數用來塞進 MocPOGO route name
     function buildMocpogoJson(points, name) {
       const baseSec = 1760000000.0;
       const startTime = baseSec;
@@ -240,7 +239,7 @@
         '      "coordinates" : [',
         coordLines,
         "      ],",
-        kv("name", name || "test", 6, false, true),   // 用使用者檔名
+        kv("name", name || "test", 6, false, true),
         kv("createTime", routeTime, 6, true, false),
         "    }"
       ].join("\n");
@@ -324,7 +323,6 @@
       const zInput = parseFloat(document.getElementById("zvalue").value);
       const z = !isNaN(zInput) ? zInput : 0.0003;
 
-      // 檔名處理：去掉前後空白，空字串就用 route
       let baseName = (document.getElementById("filename").value || "").trim();
       if (!baseName) baseName = "route";
 
@@ -345,21 +343,48 @@
 
       points = applyClosedRoute(points);
 
+      // 我全都要：一次下載三個檔案
+      if (format === "all") {
+        let content, filename, mime;
+
+        // standard
+        content = buildStandardGpx(points);
+        filename = baseName + ".gpx";
+        mime = "application/gpx+xml;charset=utf-8";
+        download(filename, content, mime);
+
+        // ghost
+        content = buildGhostFormat(points);
+        filename = baseName + "_魅影.gpx";
+        mime = "application/gpx+xml;charset=utf-8";
+        download(filename, content, mime);
+
+        // mocpogo
+        content = buildMocpogoJson(points, baseName);
+        filename = baseName + "_mocpogo.favorite";
+        mime = "application/octet-stream";
+        download(filename, content, mime);
+
+        document.getElementById("preview").textContent = content;
+        return;
+      }
+
+      // 單一格式
       let content = "";
       let filename = "";
       let mime = "";
 
       if (format === "standard") {
         content = buildStandardGpx(points);
-        filename = baseName + ".gpx";              // AA.gpx
+        filename = baseName + ".gpx";
         mime = "application/gpx+xml;charset=utf-8";
       } else if (format === "ghost") {
         content = buildGhostFormat(points);
-        filename = baseName + "_魅影.gpx";        // AA_魅影.gpx
+        filename = baseName + "_魅影.gpx";
         mime = "application/gpx+xml;charset=utf-8";
-      } else {
-        content = buildMocpogoJson(points, baseName); // MocPOGO 裡面的 name 用 AA
-        filename = baseName + "_mocpogo.favorite";    // AA_mocpogo.favorite
+      } else { // mocpogo
+        content = buildMocpogoJson(points, baseName);
+        filename = baseName + "_mocpogo.favorite";
         mime = "application/octet-stream";
       }
 
@@ -369,4 +394,3 @@
   </script>
 </body>
 </html>
-
