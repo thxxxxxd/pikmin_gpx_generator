@@ -36,7 +36,7 @@
 
   <label for="format">輸出格式：</label>
   <select id="format">
-    <option value="standard">standard GPX file</option>
+    <option value="standard">JS</option>
     <option value="ghost">魅影</option>
     <option value="mocpogo">MocPOGO</option>
     <option value="all">我全都要!</option>
@@ -44,20 +44,20 @@
 
   <label for="mode">路線模式：</label>
   <select id="mode">
-    <option value="straight">我就懶, 我要走直線!</option>
+    <option value="straight">我就懶! 我要走直線!</option>
     <option value="diamond">愛的魔力轉圈圈</option>
     <option value="flash">煞氣a閃電跑法</option>
   </select>
 
-  <label for="zvalue">圈圈要多大：</label>
+  <label for="zvalue">圈圈要多大(轉圈圈模式才需要)：</label>
   <input id="zvalue" type="number" step="0.000001" value="0.0003" />
 
-  <label for="filename">檔名：</label>
+  <label for="filename">檔名要叫啥：</label>
   <input id="filename" type="text" value="route" />
 
   <label>
     <input id="closedRoute" type="checkbox" />
-    封閉路線
+    請帶我回家
   </label>
 
   <button id="generate">產生並下載</button>
@@ -261,7 +261,7 @@
       return jsonLines.join("\n");
     }
 
-    // 愛的魔力轉圈圈：(x,y) -> A -> B -> C -> D -> A'
+    // Diamond pattern: (x,y) -> A -> B -> C -> D -> A'
     function expandPointsDiamond(points, z) {
       const out = [];
       const epsilon = 0.000001;
@@ -284,7 +284,7 @@
       return out;
     }
 
-    // 煞氣a閃電跑法：A -> D -> B -> C
+    // Zigzag pattern: A -> D -> B -> C
     function expandPointsFlash(points, z) {
       const out = [];
       points.forEach(p => {
@@ -299,7 +299,7 @@
       return out;
     }
 
-    // 封閉路線：最後再加一個 (first.lat + eps, first.lng + eps)
+    // Closed route: add one more point at the end (first.lat + eps, first.lng + eps)
     function applyClosedRoute(points) {
       const checkbox = document.getElementById("closedRoute");
       if (!checkbox.checked) return points;
@@ -343,19 +343,19 @@
 
       points = applyClosedRoute(points);
 
-      // 我全都要：一次下載三個檔案
+      // "I want all of them": download all three files at once
       if (format === "all") {
         let content, filename, mime;
 
         // standard
         content = buildStandardGpx(points);
-        filename = baseName + ".gpx";
+        filename = baseName + "_js.gpx";
         mime = "application/gpx+xml;charset=utf-8";
         download(filename, content, mime);
 
         // ghost
         content = buildGhostFormat(points);
-        filename = baseName + "_魅影.gpx";
+        filename = baseName + "_ghost.gpx";
         mime = "application/gpx+xml;charset=utf-8";
         download(filename, content, mime);
 
@@ -369,18 +369,18 @@
         return;
       }
 
-      // 單一格式
+      // Single format
       let content = "";
       let filename = "";
       let mime = "";
 
       if (format === "standard") {
         content = buildStandardGpx(points);
-        filename = baseName + ".gpx";
+        filename = baseName + "_js.gpx";
         mime = "application/gpx+xml;charset=utf-8";
       } else if (format === "ghost") {
         content = buildGhostFormat(points);
-        filename = baseName + "_魅影.gpx";
+        filename = baseName + "_ghost.gpx";
         mime = "application/gpx+xml;charset=utf-8";
       } else { // mocpogo
         content = buildMocpogoJson(points, baseName);
